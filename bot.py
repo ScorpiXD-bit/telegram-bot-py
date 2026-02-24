@@ -3,7 +3,7 @@ import requests
 from telebot import types
 from datetime import datetime, timedelta
 import os
-import os
+import time
 from flask import Flask, request
 
 
@@ -225,20 +225,13 @@ def show_today(message):
         bot.send_message(message.chat.id, "❗ Сначала введи класс")
         return
 
-    # Попытка удалить старое сообщение — безопасно
     if message.chat.id in last_schedule_message:
-        try:
-            bot.delete_message(message.chat.id, last_schedule_message[message.chat.id])
-        except Exception:
-            pass
+        bot.delete_message(message.chat.id, last_schedule_message[message.chat.id])
 
     text = format_schedule(user_class[message.chat.id], 0)
-
-    try:
-        msg = bot.send_message(message.chat.id, text, reply_markup=day_keyboard(0))
-        last_schedule_message[message.chat.id] = msg.message_id
-    except Exception as e:
-        print("Ошибка при отправке сообщения:", e)
+    # Исправлено: передаем offset = 0
+    msg = bot.send_message(message.chat.id, text, reply_markup=day_keyboard(0))
+    last_schedule_message[message.chat.id] = msg.message_id
 
 # -------------------- КНОПКИ ДНЕЙ --------------------
 
@@ -325,6 +318,46 @@ def secrets(msg):
     
     bot.send_message(msg.chat.id, text)
     
+
+# -------------------- БАН И РАЗБАН --------------------
+
+@bot.message_handler(commands=["ban"])
+def ban_user(message):
+    # Проверяем, что сообщение от спецпользователя
+    if message.chat.id not in SPECIAL_USERS:
+        bot.send_message(message.chat.id, "❌ Только для спец пользователей!")
+        return
+
+    try:
+        user_id = int(message.text.split()[1])
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "❗ Использование: /ban <user_id>")
+        return
+
+    BLACKLIST.add(user_id)
+    bot.send_message(message.chat.id, f"✅ Пользователь {user_id} забанен.")
+
+
+@bot.message_handler(commands=["unban"])
+def unban_user(message):
+    # Только спец пользователи могут разбанить
+    if message.chat.id not in SPECIAL_USERS:
+        bot.send_message(message.chat.id, "❌ Только для спец пользователей!")
+        return
+
+    try:
+        user_id = int(message.text.split()[1])
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "❗ Использование: /unban <user_id>")
+        return
+
+    if user_id in BLACKLIST:
+        BLACKLIST.remove(user_id)
+        bot.send_message(message.chat.id, f"✅ Пользователь {user_id} разбанен.")
+    else:
+        bot.send_message(message.chat.id, f"ℹ Пользователь {user_id} не в бане.")
+
+
 # -------------------- ЗАПУСК --------------------
 
 print("🤖 Bot started")
@@ -351,5 +384,3 @@ def index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
-
-
