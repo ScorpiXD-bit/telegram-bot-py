@@ -225,13 +225,20 @@ def show_today(message):
         bot.send_message(message.chat.id, "❗ Сначала введи класс")
         return
 
+    # Попытка удалить старое сообщение — безопасно
     if message.chat.id in last_schedule_message:
-        bot.delete_message(message.chat.id, last_schedule_message[message.chat.id])
+        try:
+            bot.delete_message(message.chat.id, last_schedule_message[message.chat.id])
+        except Exception:
+            pass
 
     text = format_schedule(user_class[message.chat.id], 0)
-    # Исправлено: передаем offset = 0
-    msg = bot.send_message(message.chat.id, text, reply_markup=day_keyboard(0))
-    last_schedule_message[message.chat.id] = msg.message_id
+
+    try:
+        msg = bot.send_message(message.chat.id, text, reply_markup=day_keyboard(0))
+        last_schedule_message[message.chat.id] = msg.message_id
+    except Exception as e:
+        print("Ошибка при отправке сообщения:", e)
 
 # -------------------- КНОПКИ ДНЕЙ --------------------
 
