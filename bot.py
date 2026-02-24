@@ -32,7 +32,7 @@ user_classes = user_class     # используем словарь с клас�
 def main_keyboard():
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.row("📚 Показать расписание")
-    kb.row("❤️ Поддержать автора", "🆘 поддержка")
+    kb.row("❤️ Поддержать автора", "🆘 Тех поддержка")
     return kb
 
 # ===== КНОПКИ =====
@@ -325,7 +325,6 @@ def secrets(msg):
 def ban_user(message):
     # Проверяем, что сообщение от спецпользователя
     if message.chat.id not in SPECIAL_USERS:
-        bot.send_message(message.chat.id, "❌ Только для спец пользователей!")
         return
 
     try:
@@ -342,7 +341,6 @@ def ban_user(message):
 def unban_user(message):
     # Только спец пользователи могут разбанить
     if message.chat.id not in SPECIAL_USERS:
-        bot.send_message(message.chat.id, "❌ Только для спец пользователей!")
         return
 
     try:
