@@ -3,6 +3,8 @@ import requests
 from telebot import types
 from datetime import datetime, timedelta
 import os
+import os
+from flask import Flask, request
 
 
 TOKEN = os.getenv("TOKEN")
@@ -320,11 +322,27 @@ def secrets(msg):
 
 print("🤖 Bot started")
 
-while True:
-    try:
-        bot.polling(none_stop=True, interval=0)
-    except Exception as e:
-        print("Ошибка:", e)
-        time.sleep(5)
+
+
+app = Flask(__name__)
+TOKEN = os.getenv("TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # URL Render, который даст Render
+
+bot.remove_webhook()
+bot.set_webhook(url=WEBHOOK_URL + TOKEN)
+
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    json_string = request.get_data().decode("utf-8")
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "OK", 200
+
+@app.route("/", methods=["GET"])
+def index():
+    return "Bot is running!", 200
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
 
 
