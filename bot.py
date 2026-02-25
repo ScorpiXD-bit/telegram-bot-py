@@ -19,6 +19,7 @@ SUPPORT_USERNAME = "@TexPoddershka80"
 BLACKLIST = {14269529}
 CACHE_TTL = 60*30  # 30 минут
 
+all_users = set()
 user_class = {}
 user_name = {}
 schedule_cache = {}
@@ -95,8 +96,16 @@ LESSON_ABBREVIATIONS = {
     "Иностранный язык": "Ин. яз.",
     "Физическая культура": "Физ-ра",
     "Труд (технология)": "Труд",
-    "----": "-"
-    # Добавляй новые предметы сюда
+    "----": "-",
+    "Вероятность и статистика": "ВиС",
+    "Алгебра и начала математического анализа": "Алгебра",
+    "Сочинение - рассуждение. Теория и практика": "Сочинение-рассуждение",
+    "Сложные вопросы химии": "Слож. вопр. химии",
+    "Сложные вопросы биологии": "Слож. вопр. биологии",
+    "Избранные вопросы математики": "Избр. вопр. матем.",
+    "Второй иностранный язык История": "Второй ин. яз.",
+    "": "",
+    "": "",
 }
 
 # -------------------- Функция для сокращения уроков --------------------
@@ -161,25 +170,39 @@ def format_schedule(class_name, day_offset):
 # -------------------- ПРОВЕРКА СУЩЕСТВОВАНИЯ КЛАССА --------------------
 
 def class_exists(class_name):
-    """Проверяет, существует ли класс в системе расписания."""
+    try:
+        number = int(''.join(filter(str.isdigit, class_name)))
+        if 1 <= number <= 4:
+            return "primary"
+    except:
+        return False
+
+    # Проверка существования через API
     url = "https://r.sch80.ru/api/v1/rasp/subject-rasp/"
     params = {
         "type": "klass",
         "name": class_name,
         "date": datetime.now().strftime("%d.%m.%Y")
     }
+
     try:
         r = requests.get(url, params=params, timeout=5)
         data = r.json()
-        # Если ключ "rasp" пустой, значит класс не найден
+
         if not data.get("rasp"):
             return False
+
         return True
+
     except Exception:
         return False
 
 
 # -------------------- СТАРТ --------------------
+
+@bot.message_handler(func=lambda m: True, content_types=['text'])
+def register_user(message):
+    all_users.add(message.chat.id)
 
 @bot.message_handler(commands=["start"])
 def start(message):
@@ -188,7 +211,7 @@ def start(message):
 
     bot.send_message(
         message.chat.id,
-        "👋 Привет! Напиши класс (например: 6Г)",
+        "👋 Привет! Напиши класс (например: 7А)",
         reply_markup=main_keyboard()
     )
 
@@ -200,9 +223,17 @@ def save_class(message):
         return
 
     class_name = message.text.upper()
-    
-    # Проверяем, существует ли класс
-    if not class_exists(class_name):
+    result = class_exists(class_name)
+
+    if result == "primary":
+        bot.send_message(
+            message.chat.id,
+            "🚫 Начальные классы (1–4) не поддерживаются.\n"
+            "Расписание доступно только с 5 класса."
+        )
+        return
+
+    if not result:
         bot.send_message(message.chat.id, f"❗ Класса {class_name} не существует!")
         return
 
@@ -317,7 +348,49 @@ def secrets(msg):
         text += f"ID: {uid} | Класс: {cls} | @{username}\n"
     
     bot.send_message(msg.chat.id, text)
-    
+
+
+@bot.message_handler(commands=["all"])
+def send_all(message):
+    if message.chat.id not in SPECIAL_USERS:
+        return
+    try:
+        text_to_send = message.text.split(" ", 1)[1]
+    except IndexError:
+        bot.send_message(message.chat.id, "❗ Использование: /all <сообщение>")
+        return
+
+    sent = 0
+    failed = 0
+
+    for user_id in all_users:
+        try:
+            bot.send_message(user_id, f"📢 Объявление:\n\n{text_to_send}")
+            sent += 1
+            time.sleep(0.05)
+        except Exception:
+            failed += 1
+
+    bot.send_message(
+        message.chat.id,
+        f"✅ Рассылка завершена.\n\n"
+        f"Отправлено: {sent}\n"
+        f"Не удалось: {failed}"
+    )
+
+@bot.message_handler(commands=["ban"])
+def ban_user(message):
+    # Проверяем, что сообщение от спецпользователя
+    if message.chat.id not in SPECIAL_USERS:
+        return
+
+    try:
+        user_id = int(message.text.split()[1])
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "❗ Использование: /spec <user_id>")
+        return
+    SPECIAL_USERS.add(user_id)
+    bot.send_message(message.chat.id, f"✅ Пользователь {user_id} добавлен в спец пользователей.") 
 
 # -------------------- БАН И РАЗБАН --------------------
 
@@ -382,3 +455,4 @@ def index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    
