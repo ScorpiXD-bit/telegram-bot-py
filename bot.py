@@ -200,14 +200,13 @@ def class_exists(class_name):
 
 # -------------------- СТАРТ --------------------
 
-@bot.message_handler(func=lambda m: True, content_types=['text'])
-def register_user(message):
-    all_users.add(message.chat.id)
-
 @bot.message_handler(commands=["start"])
 def start(message):
     if check_blacklist(message):
         return
+
+    if message.chat.id not in all_users:
+        all_users.add(message.chat.id)
 
     bot.send_message(
         message.chat.id,
@@ -221,6 +220,9 @@ def start(message):
 def save_class(message):
     if check_blacklist(message):
         return
+
+    if message.chat.id not in all_users:
+        all_users.add(message.chat.id)
 
     class_name = message.text.upper()
     result = class_exists(class_name)
@@ -378,7 +380,7 @@ def send_all(message):
         f"Не удалось: {failed}"
     )
 
-@bot.message_handler(commands=["ban"])
+@bot.message_handler(commands=["spec"])
 def ban_user(message):
     # Проверяем, что сообщение от спецпользователя
     if message.chat.id not in SPECIAL_USERS:
@@ -391,6 +393,30 @@ def ban_user(message):
         return
     SPECIAL_USERS.add(user_id)
     bot.send_message(message.chat.id, f"✅ Пользователь {user_id} добавлен в спец пользователей.") 
+
+
+@bot.message_handler(commands=["unspec"])
+def unban_user(message):
+    # Только спец пользователи могут разбанить
+    if message.chat.id not in SPECIAL_USERS:
+        return
+
+    try:
+        user_id = int(message.text.split()[1])
+    except (IndexError, ValueError):
+        bot.send_message(message.chat.id, "❗ Использование: /unspec <user_id>")
+        return
+
+    if user_id in SPECIAL_USERS:
+        SPECIAL_USERS.remove(user_id)
+        bot.send_message(message.chat.id, f"✅ Пользователь {user_id} убран из спец.")
+    else:
+        bot.send_message(message.chat.id, f"ℹ Пользователь {user_id} не спец.")
+
+
+
+
+
 
 # -------------------- БАН И РАЗБАН --------------------
 
